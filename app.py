@@ -4,9 +4,9 @@ import os
 
 app = Flask(__name__)
 
-# API KEY GEMINI (CORRECTO)
+# API KEY (SE CARGA DESDE RENDER)
 genai.configure(
-    api_key=os.environ["AIzaSyA7v84GquxcvY-zNVTUMd1S65xevArX8Nk"]
+    api_key=os.getenv("AIzaSyA7v84GquxcvY-zNVTUMd1S65xevArX8Nk")
 )
 
 model = genai.GenerativeModel("gemini-1.5-flash")
