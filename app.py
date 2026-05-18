@@ -1,41 +1,19 @@
 from flask import Flask, request, jsonify
-import google.generativeai as genai
+from google import genai
 import os
 
 app = Flask(__name__)
 
-# =========================
-# CONFIG GEMINI API KEY
-# =========================
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
-
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
 @app.route("/", methods=["POST"])
 def alexa():
 
-    data = request.get_json(silent=True)
-
-    if not data:
-        return jsonify({
-            "version": "1.0",
-            "response": {
-                "outputSpeech": {
-                    "type": "PlainText",
-                    "text": "No llegó JSON al servidor"
-                },
-                "shouldEndSession": False
-            }
-        })
+    data = request.get_json(silent=True) or {}
 
     request_type = data.get("request", {}).get("type", "")
 
-    # =========================
-    # LaunchRequest
-    # =========================
     if request_type == "LaunchRequest":
         return jsonify({
             "version": "1.0",
@@ -48,9 +26,6 @@ def alexa():
             }
         })
 
-    # =========================
-    # IntentRequest
-    # =========================
     if request_type == "IntentRequest":
 
         user_text = data.get("request", {}) \
@@ -60,12 +35,15 @@ def alexa():
                         .get("value", "hola")
 
         try:
-            response = model.generate_content(str(user_text))
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=user_text
+            )
             ai_text = response.text
 
         except Exception as e:
             print("🔥 ERROR GEMINI REAL:", str(e))
-            ai_text = "Error en Gemini (revisar logs)"
+            ai_text = "Error en Gemini: revisar logs"
 
         return jsonify({
             "version": "1.0",
@@ -83,7 +61,7 @@ def alexa():
         "response": {
             "outputSpeech": {
                 "type": "PlainText",
-                "text": "Tipo de request no soportado"
+                "text": "Request no válido"
             },
             "shouldEndSession": False
         }
