@@ -4,7 +4,6 @@ import os
 
 app = Flask(__name__)
 
-# API KEY (SE CARGA DESDE RENDER)
 genai.configure(
     api_key=os.getenv("AIzaSyA7v84GquxcvY-zNVTUMd1S65xevArX8Nk")
 )
@@ -15,19 +14,31 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 @app.route("/", methods=["POST"])
 def alexa():
 
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
 
-    request_type = data.get("request", {}).get("type", "")
-
-    # LaunchRequest
-    if request_type == "LaunchRequest":
-
+    # DEBUG seguro
+    if not data:
         return jsonify({
             "version": "1.0",
             "response": {
                 "outputSpeech": {
                     "type": "PlainText",
-                    "text": "Hola Iván, soy tu asistente inteligente."
+                    "text": "No llegó JSON"
+                },
+                "shouldEndSession": False
+            }
+        })
+
+    request_type = data.get("request", {}).get("type")
+
+    # LaunchRequest
+    if request_type == "LaunchRequest":
+        return jsonify({
+            "version": "1.0",
+            "response": {
+                "outputSpeech": {
+                    "type": "PlainText",
+                    "text": "Hola Iván, listo para ayudarte."
                 },
                 "shouldEndSession": False
             }
@@ -36,19 +47,19 @@ def alexa():
     # IntentRequest
     if request_type == "IntentRequest":
 
-        user_text = (
-            data.get("request", {})
-                .get("intent", {})
-                .get("slots", {})
-                .get("text", {})
-                .get("value", "hola")
-        )
+        user_text = "hola"
+
+        try:
+            user_text = data["request"]["intent"]["slots"]["text"]["value"]
+        except:
+            pass
 
         try:
             response = model.generate_content(user_text)
             ai_text = response.text
-        except Exception:
-            ai_text = "Lo siento, hubo un error procesando tu pregunta."
+        except Exception as e:
+            print("ERROR GEMINI:", e)
+            ai_text = f"Error en Gemini con: {user_text}"
 
         return jsonify({
             "version": "1.0",
@@ -61,13 +72,12 @@ def alexa():
             }
         })
 
-    # fallback seguro
     return jsonify({
         "version": "1.0",
         "response": {
             "outputSpeech": {
                 "type": "PlainText",
-                "text": "Solicitud no válida"
+                "text": "Tipo de request no soportado"
             },
             "shouldEndSession": False
         }
