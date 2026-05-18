@@ -1,23 +1,25 @@
 from flask import Flask, request, jsonify
 import google.generativeai as genai
+import os
 
 app = Flask(__name__)
 
-# API KEY GEMINI
+# API KEY GEMINI (CORRECTO)
 genai.configure(
-    api_key="AIzaSyA7v84GquxcvY-zNVTUMd1S65xevArX8Nk"
+    api_key=os.environ["AIzaSyA7v84GquxcvY-zNVTUMd1S65xevArX8Nk"]
 )
 
 model = genai.GenerativeModel("gemini-1.5-flash")
 
+
 @app.route("/", methods=["POST"])
 def alexa():
 
-    data = request.json
+    data = request.get_json(silent=True) or {}
 
-    request_type = data["request"]["type"]
+    request_type = data.get("request", {}).get("type", "")
 
-    # Cuando Alexa abre la skill
+    # LaunchRequest
     if request_type == "LaunchRequest":
 
         return jsonify({
@@ -31,14 +33,22 @@ def alexa():
             }
         })
 
-    # Cuando el usuario pregunta
+    # IntentRequest
     if request_type == "IntentRequest":
 
-        user_text = data["request"]["intent"]["slots"]["text"]["value"]
+        user_text = (
+            data.get("request", {})
+                .get("intent", {})
+                .get("slots", {})
+                .get("text", {})
+                .get("value", "hola")
+        )
 
-        response = model.generate_content(user_text)
-
-        ai_text = response.text
+        try:
+            response = model.generate_content(user_text)
+            ai_text = response.text
+        except Exception:
+            ai_text = "Lo siento, hubo un error procesando tu pregunta."
 
         return jsonify({
             "version": "1.0",
@@ -50,6 +60,19 @@ def alexa():
                 "shouldEndSession": False
             }
         })
+
+    # fallback seguro
+    return jsonify({
+        "version": "1.0",
+        "response": {
+            "outputSpeech": {
+                "type": "PlainText",
+                "text": "Solicitud no válida"
+            },
+            "shouldEndSession": False
+        }
+    })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
