@@ -4,8 +4,11 @@ import os
 
 app = Flask(__name__)
 
+# =========================
+# CONFIG GEMINI API KEY
+# =========================
 genai.configure(
-    api_key=os.getenv("AIzaSyA7v84GquxcvY-zNVTUMd1S65xevArX8Nk")
+    api_key=os.getenv("GEMINI_API_KEY")
 )
 
 model = genai.GenerativeModel("gemini-1.5-flash")
@@ -16,22 +19,23 @@ def alexa():
 
     data = request.get_json(silent=True)
 
-    # DEBUG seguro
     if not data:
         return jsonify({
             "version": "1.0",
             "response": {
                 "outputSpeech": {
                     "type": "PlainText",
-                    "text": "No llegó JSON"
+                    "text": "No llegó JSON al servidor"
                 },
                 "shouldEndSession": False
             }
         })
 
-    request_type = data.get("request", {}).get("type")
+    request_type = data.get("request", {}).get("type", "")
 
+    # =========================
     # LaunchRequest
+    # =========================
     if request_type == "LaunchRequest":
         return jsonify({
             "version": "1.0",
@@ -44,22 +48,24 @@ def alexa():
             }
         })
 
+    # =========================
     # IntentRequest
+    # =========================
     if request_type == "IntentRequest":
 
-        user_text = "hola"
+        user_text = data.get("request", {}) \
+                        .get("intent", {}) \
+                        .get("slots", {}) \
+                        .get("text", {}) \
+                        .get("value", "hola")
 
         try:
-            user_text = data["request"]["intent"]["slots"]["text"]["value"]
-        except:
-            pass
-
-        try:
-            response = model.generate_content(user_text)
+            response = model.generate_content(str(user_text))
             ai_text = response.text
+
         except Exception as e:
-            print("ERROR GEMINI:", e)
-            ai_text = f"Error en Gemini con: {user_text}"
+            print("🔥 ERROR GEMINI REAL:", str(e))
+            ai_text = "Error en Gemini (revisar logs)"
 
         return jsonify({
             "version": "1.0",
